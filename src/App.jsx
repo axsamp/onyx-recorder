@@ -23,7 +23,7 @@ const TechnicalMic = ({ active }) => (
     <path d="M5 10C5 13.866 8.13401 17 12 17C15.866 17 19 13.866 19 10" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
     <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
     <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
-    {active && <circle cx="12" cy="9" r="1.2" fill="#C084FC" className="opacity-80" />}
+    {active && <circle cx="12" cy="9" r="1.2" fill="#FFC107" className="opacity-80" />}
   </svg>
 );
 
@@ -32,7 +32,7 @@ const VUStrip = ({ value }) => {
   return (
     <div className="w-full px-4">
       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-        <motion.div animate={{ width: `${level}%` }} transition={{ type: "spring", stiffness: 300, damping: 20 }} className={cn("h-full", level > 90 ? "bg-onyx-purple" : "bg-onyx-purple/50")} />
+        <motion.div animate={{ width: `${level}%` }} transition={{ type: "spring", stiffness: 300, damping: 20 }} className={cn("h-full", level > 90 ? "bg-[#FFC107]" : "bg-[#FFC107]/50")} />
       </div>
     </div>
   );
@@ -162,7 +162,7 @@ export default function App() {
   const avgLevel = useMemo(() => isRecording ? frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length : 0, [frequencyData, isRecording]);
 
   return (
-    <div className="h-[100dvh] bg-black text-white p-8 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30 overscroll-none">
+    <div className="h-[100dvh] bg-black text-white p-8 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-[#FFC107]/30 overscroll-none">
       
       {/* Premium Overlays */}
       <div className="fixed inset-0 pointer-events-none z-[500] opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
@@ -171,24 +171,24 @@ export default function App() {
       <header className="w-full max-w-lg flex justify-between items-start pt-8 mb-12 shrink-0">
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-onyx-purple animate-pulse" />
-            <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.5em] opacity-60">Acoustic Signal</span>
+            <div className="w-1.5 h-1.5 bg-[#FFC107] animate-pulse" />
+            <span className="text-[10px] font-black text-[#FFC107] uppercase tracking-[0.5em] opacity-60">Acoustic Signal</span>
           </div>
           <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">Onyx Recorder</h1>
         </div>
-        <div className={cn("w-2 h-2 rounded-full transition-colors mt-2", isRecording ? "bg-onyx-purple shadow-[0_0_12px_rgba(192,132,252,0.8)]" : "bg-white/5")} />
+        <div className={cn("w-2 h-2 rounded-full transition-colors mt-2", isRecording ? "bg-[#FFC107] shadow-[0_0_12px_rgba(255,193,7,0.8)]" : "bg-white/5")} />
       </header>
 
       <div className="w-full max-w-lg flex flex-col gap-8 mb-10 shrink-0">
         <div className="bg-[#0A0A0A] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-40 h-40 bg-onyx-purple/5 blur-3xl -mr-20 -mt-20 rounded-full" />
+           <div className="absolute top-0 right-0 w-40 h-40 bg-[#FFC107]/5 blur-3xl -mr-20 -mt-20 rounded-full" />
            <div className="flex justify-between items-start mb-8 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
-                className={cn("flex items-center gap-3 px-5 py-2.5 bg-black border rounded-2xl transition-all", isRecording ? "opacity-30 border-white/5" : "border-white/5 hover:border-onyx-purple/30")}
+                className={cn("flex items-center gap-3 px-5 py-2.5 bg-black border rounded-2xl transition-all", isRecording ? "opacity-30 border-white/5" : "border-white/5 hover:border-[#FFC107]/30")}
               >
-                <Sliders size={12} className="text-onyx-purple" />
+                <Sliders size={12} className="text-[#FFC107]" />
                 <span className="text-[9px] font-black uppercase tracking-[0.4em]">{fidelity}</span>
               </button>
               <span className="text-[9px] font-mono text-zinc-800 uppercase tracking-[0.3em]">48.0 KHZ</span>
@@ -205,7 +205,7 @@ export default function App() {
             whileTap={{ scale: 0.95 }}
             className={cn(
               "w-24 h-24 rounded-[2rem] flex items-center justify-center transition-all duration-500",
-              isRecording ? "bg-onyx-purple shadow-[0_0_60px_rgba(192,132,252,0.4)]" : "bg-white/[0.03] border border-white/5 hover:border-onyx-purple/40"
+              isRecording ? "bg-[#FFC107] shadow-[0_0_60px_rgba(255,193,7,0.4)]" : "bg-white/[0.03] border border-white/5 hover:border-[#FFC107]/40"
             )}
           >
             {isRecording ? <Square size={28} className="text-white fill-current" /> : <TechnicalMic active={isRecording} />}
