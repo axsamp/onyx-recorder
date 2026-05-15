@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Play, Trash2, Download, Settings, Database, Clock, Activity, Zap, Volume2, ShieldAlert, Sliders } from 'lucide-react';
+import { Square, Play, Trash2, Download, Settings, Database, Clock, Sliders, ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OnyxRecorder } from './utils/audio';
@@ -17,28 +17,31 @@ const triggerHaptic = (type = 'light') => {
   } catch (e) {}
 };
 
-// --- Minimalist Analog VU Strip ---
+// --- Custom Technical Mic Icon ---
+const TechnicalMic = ({ active }) => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="9" y="4" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.4} />
+    <path d="M5 10C5 13.866 8.13401 17 12 17C15.866 17 19 13.866 19 10" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
+    <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
+    <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.2} />
+    {active && <motion.circle cx="12" cy="9" r="1.5" fill="#EF4444" animate={{ opacity: [1, 0, 1] }} transition={{ duration: 1, repeat: Infinity }} />}
+  </svg>
+);
+
+// --- High-Precision Signal Strip ---
 const VUStrip = ({ value }) => {
   const level = (value / 255) * 100;
   return (
-    <div className="w-full flex flex-col gap-1.5 px-2">
-      <div className="flex justify-between items-center text-[7px] font-black text-zinc-600 uppercase tracking-[0.3em]">
-        <span>Signal Input</span>
-        <span>{level.toFixed(0)}%</span>
-      </div>
-      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
+    <div className="w-full flex flex-col gap-1 px-4">
+      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
         <motion.div 
           animate={{ width: `${level}%` }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
           className={cn(
-            "h-full rounded-full transition-colors duration-300",
-            level > 85 ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-onyx-purple shadow-[0_0_10px_rgba(192,132,252,0.5)]"
+            "h-full transition-colors duration-300",
+            level > 85 ? "bg-red-500" : "bg-onyx-purple"
           )}
         />
-        {/* Scale Ticks */}
-        <div className="absolute inset-0 flex justify-between px-4 pointer-events-none opacity-20">
-          {[...Array(5)].map((_, i) => <div key={i} className="w-[1px] h-full bg-black" />)}
-        </div>
       </div>
     </div>
   );
@@ -57,7 +60,6 @@ export default function App() {
   const recorderRef = useRef(new OnyxRecorder());
   const rafRef = useRef(null);
 
-  // Playback logic
   const playRecord = (url, id) => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -99,12 +101,6 @@ export default function App() {
     };
   }, [isRecording, updateVisualizer]);
 
-  const formatTime = (s) => {
-    const mm = Math.floor(s / 60).toString().padStart(2, '0');
-    const ss = (s % 60).toString().padStart(2, '0');
-    return `${mm}:${ss}`;
-  };
-
   const handleRecord = async () => {
     triggerHaptic('medium');
     if (!isRecording) {
@@ -117,7 +113,7 @@ export default function App() {
       setIsRecording(false);
       const newRecord = {
         id: Date.now(),
-        name: `SIG ${Math.floor(Math.random() * 999)}`,
+        name: `SIG-${Math.floor(Math.random() * 999)}`,
         duration: elapsed,
         url: result.url,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
@@ -127,9 +123,15 @@ export default function App() {
     }
   };
 
-  const toggleFidelity = () => {
+  const formatTime = (s) => {
+    const mm = Math.floor(s / 60).toString().padStart(2, '0');
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  };
+
+  const deleteRecord = (id) => {
     triggerHaptic('light');
-    setFidelity(prev => prev === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS');
+    setRecordings(prev => prev.filter(r => r.id !== id));
   };
 
   const avgLevel = useMemo(() => {
@@ -138,131 +140,130 @@ export default function App() {
   }, [frequencyData, isRecording]);
 
   return (
-    <div className="h-[100dvh] bg-black text-white p-6 md:p-12 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
+    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
       
-      {/* Minimalist Top Nav */}
-      <header className="w-full max-w-lg flex justify-between items-center mb-16 pt-4">
+      {/* Header */}
+      <header className="w-full max-w-lg flex justify-between items-center py-4 mb-8 shrink-0">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.6em] mb-1">Onyx Signal</span>
-          <h1 className="text-2xl font-black tracking-tighter uppercase leading-[0.8] text-white/40 italic">Acoustic</h1>
+          <h1 className="text-xl font-black tracking-tighter uppercase leading-[0.8] text-white/40">Acoustic</h1>
         </div>
         <div className="flex items-center gap-4">
-           <div className="flex flex-col items-end">
-              <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest">Sys_Status</span>
-              <div className={cn("w-1.5 h-1.5 rounded-full mt-1 shadow-lg", isRecording ? "bg-red-500 animate-pulse shadow-red-500/50" : "bg-white/10")} />
-           </div>
+           <span className="text-[8px] font-mono text-zinc-700 tracking-widest uppercase">Node_05</span>
+           <div className={cn("w-1.5 h-1.5 rounded-full", isRecording ? "bg-red-500 animate-pulse" : "bg-white/5")} />
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-lg flex flex-col items-center">
+      {/* Main Bridge Container: Controls & Visualizer */}
+      <div className="w-full max-w-lg flex flex-col gap-6 mb-8 shrink-0">
         
-        {/* The Minimal Analog Display */}
-        <div className="w-full bg-[#080808] border border-white/5 rounded-[32px] p-8 mb-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] relative overflow-hidden">
-           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-           
-           {/* Fidelity Mode Toggle */}
-           <div className="flex justify-center mb-8">
+        {/* Analog Display Box */}
+        <div className="bg-[#080808] border border-white/5 rounded-3xl p-6 shadow-2xl relative">
+           <div className="flex justify-between items-start mb-6">
               <button 
-                onClick={toggleFidelity}
-                className="group relative flex items-center gap-3 px-6 py-2.5 bg-black border border-white/10 rounded-full transition-all hover:border-onyx-purple/50"
+                onClick={() => setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS')}
+                className="flex items-center gap-3 px-4 py-2 bg-black border border-white/5 rounded-xl hover:border-onyx-purple/30 transition-all"
               >
-                <Sliders size={12} className={cn("transition-colors", fidelity === 'PRO LOSSLESS' ? "text-onyx-purple" : "text-zinc-600")} />
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] transition-colors">
-                  {fidelity}
-                </span>
-                <div className="w-1.5 h-1.5 rounded-full bg-onyx-purple/20 group-hover:bg-onyx-purple transition-colors" />
+                <Sliders size={10} className="text-onyx-purple" />
+                <span className="text-[8px] font-black uppercase tracking-[0.3em]">{fidelity}</span>
               </button>
-           </div>
-
-           {/* The VFD Display */}
-           <div className="flex flex-col items-center mb-10">
-              <div className="flex items-baseline gap-2">
-                <span className={cn(
-                  "text-7xl font-mono font-black tracking-tighter tabular-nums transition-all duration-500",
-                  isRecording ? "text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" : "text-white/10"
-                )}>
-                  {formatTime(elapsed)}
-                </span>
-                <span className="text-xs font-black text-white/20 uppercase tracking-widest">jst</span>
+              <div className="flex flex-col items-end opacity-20">
+                 <span className="text-[6px] font-black uppercase tracking-widest">Buffer_Sync</span>
+                 <span className="text-[8px] font-mono">48.0k</span>
               </div>
            </div>
 
-           {/* Signal Strip */}
-           <VUStrip value={avgLevel} />
+           <div className="flex flex-col items-center py-4">
+              <span className={cn(
+                "text-7xl font-mono font-black tracking-tighter tabular-nums leading-none",
+                isRecording ? "text-white" : "text-white/5"
+              )}>
+                {formatTime(elapsed)}
+              </span>
+              <div className="w-full mt-8">
+                 <VUStrip value={avgLevel} />
+              </div>
+           </div>
         </div>
 
-        {/* Tactile Control Panel */}
-        <div className="relative mb-16 w-full flex justify-center">
+        {/* Minimal Control Panel */}
+        <div className="flex items-center justify-between px-2">
+           <div className="flex flex-col items-center gap-1 opacity-20">
+              <span className="text-[6px] font-black uppercase tracking-widest">In_Gain</span>
+              <div className="w-8 h-[1px] bg-white/20" />
+           </div>
+
            <motion.button
             onPointerDown={handleRecord}
-            whileTap={{ scale: 0.94 }}
+            whileTap={{ scale: 0.95 }}
             className={cn(
-              "w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 relative",
+              "w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 relative",
               isRecording 
-                ? "bg-red-500 shadow-[0_0_50px_rgba(239,68,68,0.4)]" 
-                : "bg-onyx-purple shadow-[0_0_50px_rgba(192,132,252,0.3)]"
+                ? "bg-red-500/10 border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]" 
+                : "bg-white/[0.03] border border-white/10 hover:border-onyx-purple/40"
             )}
           >
-            {/* Minimal Inner Glow */}
-            <div className="absolute inset-2 rounded-full border border-white/10" />
-            {isRecording ? <Square size={32} className="text-white fill-current" /> : <Mic size={32} className="text-white fill-current" />}
+            {isRecording ? <Square size={24} className="text-red-500 fill-current" /> : <TechnicalMic active={false} />}
+            {isRecording && <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />}
           </motion.button>
+
+           <div className="flex flex-col items-center gap-1 opacity-20">
+              <span className="text-[6px] font-black uppercase tracking-widest">Out_Bias</span>
+              <div className="w-8 h-[1px] bg-white/20" />
+           </div>
+        </div>
+      </div>
+
+      {/* Archive Section: Now Scrollable and Fixed */}
+      <div className="w-full max-w-lg flex flex-col flex-1 min-h-0 border-t border-white/5 pt-6">
+        <div className="flex items-center justify-between mb-4 px-2">
+           <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em]">Archive_Lattice</span>
+           <span className="text-[9px] font-mono text-zinc-800">{recordings.length} Nodes</span>
         </div>
 
-        {/* The Archive Lattice */}
-        <div className="w-full flex-1 overflow-y-auto no-scrollbar">
-           <div className="flex items-center gap-3 mb-6 px-2">
-              <span className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.5em]">Signals</span>
-              <div className="h-[1px] flex-1 bg-white/5" />
-           </div>
-           
-           <div className="flex flex-col gap-3">
-              {recordings.length === 0 ? (
-                <div className="py-12 border border-white/5 border-dashed rounded-3xl flex flex-col items-center justify-center opacity-10">
-                   <span className="text-[8px] font-black uppercase tracking-widest">Archives Empty</span>
-                </div>
-              ) : (
-                recordings.map((record, index) => (
-                  <motion.div 
-                    key={record.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 flex items-center justify-between group hover:border-onyx-purple/20 transition-all"
-                  >
-                    <div className="flex flex-col gap-1">
-                       <span className="text-xs font-black tracking-[0.1em] uppercase">{record.name}</span>
-                       <div className="flex items-center gap-3 opacity-30 text-[8px] font-bold uppercase tracking-widest">
-                          <span>{record.timestamp}</span>
-                          <span className="w-1 h-1 bg-white/50 rounded-full" />
-                          <span>{record.fidelity}</span>
-                          <span className="w-1 h-1 bg-white/50 rounded-full" />
-                          <span className="tabular-nums">{formatTime(record.duration)}</span>
-                       </div>
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-12">
+           {recordings.length === 0 ? (
+             <div className="py-20 flex flex-col items-center justify-center opacity-10 border border-dashed border-white/5 rounded-2xl">
+                <span className="text-[8px] font-black uppercase tracking-[0.3em]">No Archival Data Found</span>
+             </div>
+           ) : (
+             recordings.map((record, index) => (
+               <motion.div 
+                 key={record.id}
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/10 transition-all"
+               >
+                 <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black tracking-widest uppercase">{record.name}</span>
+                    <div className="flex items-center gap-3 opacity-30 text-[8px] font-bold uppercase tracking-widest">
+                       <span>{record.timestamp}</span>
+                       <span className="w-1 h-1 bg-white/40 rounded-full" />
+                       <span className="tabular-nums">{formatTime(record.duration)}</span>
+                       <span className="w-1 h-1 bg-white/40 rounded-full" />
+                       <span className="text-onyx-purple">{record.fidelity.split(' ')[0]}</span>
                     </div>
-                    
+                 </div>
+                 
+                 <div className="flex items-center gap-2">
                     <button 
                       onClick={() => playRecord(record.url, record.id)}
                       className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                        currentlyPlaying === record.id ? "bg-onyx-purple text-black" : "bg-white/5 text-white/20 hover:text-white"
+                        currentlyPlaying === record.id ? "bg-white text-black" : "bg-white/5 text-white/40 hover:text-white"
                       )}
                     >
                       {currentlyPlaying === record.id ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
                     </button>
-                  </motion.div>
-                ))
-              )}
-           </div>
+                    <button onClick={() => deleteRecord(record.id)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-all">
+                      <Trash2 size={16} />
+                    </button>
+                 </div>
+               </motion.div>
+             ))
+           )}
         </div>
-      </main>
-
-      <footer className="w-full max-w-lg mt-8 pt-8 border-t border-white/5 flex justify-between items-center opacity-20">
-         <div className="flex gap-6">
-            <button className="text-[8px] font-black uppercase tracking-widest hover:text-white transition-colors">Config</button>
-            <button className="text-[8px] font-black uppercase tracking-widest hover:text-white transition-colors">Export</button>
-         </div>
-         <span className="text-[7px] font-mono tracking-widest">ONYX_V2.0_M</span>
-      </footer>
+      </div>
     </div>
   );
 }
