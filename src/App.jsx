@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, Play, Trash2, Download, Settings, Database, Clock, Sliders, AlertTriangle } from 'lucide-react';
+import { Square, Play, Trash2, Settings, Database, Clock, Sliders, AlertTriangle, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OnyxRecorder } from './utils/audio';
@@ -31,8 +31,8 @@ const VUStrip = ({ value }) => {
   const level = (value / 255) * 100;
   return (
     <div className="w-full px-4">
-      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-        <motion.div animate={{ width: `${level}%` }} transition={{ type: "spring", stiffness: 300, damping: 20 }} className={cn("h-full", level > 90 ? "bg-onyx-purple" : "bg-onyx-purple/40")} />
+      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+        <motion.div animate={{ width: `${level}%` }} transition={{ type: "spring", stiffness: 300, damping: 20 }} className={cn("h-full", level > 90 ? "bg-onyx-purple" : "bg-onyx-purple/50")} />
       </div>
     </div>
   );
@@ -44,7 +44,6 @@ export default function App() {
     const saved = localStorage.getItem('onyx_signal_archive');
     if (!saved) return [];
     try {
-      // Hydrate from storage and immediately mark as stale since Blobs don't survive refresh
       const parsed = JSON.parse(saved);
       return parsed.map(r => ({ ...r, isStale: true }));
     } catch (e) { return []; }
@@ -66,7 +65,6 @@ export default function App() {
     silentPlayerRef.current = audio;
   }, []);
 
-  // Sync Archive to Storage
   useEffect(() => {
     localStorage.setItem('onyx_signal_archive', JSON.stringify(recordings));
   }, [recordings]);
@@ -103,20 +101,6 @@ export default function App() {
       cancelAnimationFrame(rafRef.current);
     };
   }, [isRecording, updateVisualizer]);
-
-  useEffect(() => {
-    if (isRecording && 'mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new window.MediaMetadata({
-        title: `REC: ${formatTime(elapsed)}`,
-        artist: `ONYX SIGNAL // ${fidelity}`,
-        artwork: [{ src: 'https://axsamp.github.io/onyx-hub/apple-touch-icon.png', sizes: '512x512', type: 'image/png' }]
-      });
-      navigator.mediaSession.playbackState = 'playing';
-    } else if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = null;
-      navigator.mediaSession.playbackState = 'none';
-    }
-  }, [isRecording, elapsed, fidelity]);
 
   const handleRecord = async () => {
     triggerHaptic('medium');
@@ -158,10 +142,9 @@ export default function App() {
 
   const playRecording = (record) => {
     if (record.isStale) {
-      alert("SIGNAL DATA ARCHIVED. Audio payload expires on refresh. Metadata persists.");
+      alert("SIGNAL ARCHIVED. Payload reset on refresh. Metadata preserved.");
       return;
     }
-    
     if (audioRef.current) {
       audioRef.current.pause();
       if (currentlyPlaying === record.id) {
@@ -169,7 +152,6 @@ export default function App() {
         return;
       }
     }
-
     const audio = new Audio(record.url);
     audioRef.current = audio;
     setCurrentlyPlaying(record.id);
@@ -180,32 +162,40 @@ export default function App() {
   const avgLevel = useMemo(() => isRecording ? frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length : 0, [frequencyData, isRecording]);
 
   return (
-    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30 overscroll-none">
-      <header className="w-full max-w-lg flex justify-between items-center py-4 mb-8 shrink-0">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.6em] mb-1">Onyx Signal</span>
-          <h1 className="text-xl font-black tracking-tighter uppercase leading-[0.8] text-white/40">Acoustic</h1>
+    <div className="h-[100dvh] bg-black text-white p-8 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30 overscroll-none">
+      
+      {/* Premium Overlays */}
+      <div className="fixed inset-0 pointer-events-none z-[500] opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+      <div className="fixed inset-0 pointer-events-none z-[501] opacity-[0.02] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
+
+      <header className="w-full max-w-lg flex justify-between items-start pt-8 mb-12 shrink-0">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-onyx-purple animate-pulse" />
+            <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.5em] opacity-60">Acoustic Signal</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">Onyx Recorder</h1>
         </div>
-        <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", isRecording ? "bg-onyx-purple shadow-[0_0_8px_rgba(192,132,252,0.6)]" : "bg-white/5")} />
+        <div className={cn("w-2 h-2 rounded-full transition-colors mt-2", isRecording ? "bg-onyx-purple shadow-[0_0_12px_rgba(192,132,252,0.8)]" : "bg-white/5")} />
       </header>
 
-      <div className="w-full max-w-lg flex flex-col gap-6 mb-8 shrink-0">
-        <div className="bg-[#080808] border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-onyx-purple/5 blur-3xl -mr-16 -mt-16 rounded-full" />
-           <div className="flex justify-between items-start mb-6 relative z-10">
+      <div className="w-full max-w-lg flex flex-col gap-8 mb-10 shrink-0">
+        <div className="bg-[#0A0A0A] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-40 h-40 bg-onyx-purple/5 blur-3xl -mr-20 -mt-20 rounded-full" />
+           <div className="flex justify-between items-start mb-8 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
-                className={cn("flex items-center gap-3 px-4 py-2 bg-black border rounded-xl transition-all", isRecording ? "opacity-30 border-white/5" : "border-white/5 hover:border-onyx-purple/30")}
+                className={cn("flex items-center gap-3 px-5 py-2.5 bg-black border rounded-2xl transition-all", isRecording ? "opacity-30 border-white/5" : "border-white/5 hover:border-onyx-purple/30")}
               >
-                <Sliders size={10} className="text-onyx-purple" />
-                <span className="text-[8px] font-black uppercase tracking-[0.3em]">{fidelity}</span>
+                <Sliders size={12} className="text-onyx-purple" />
+                <span className="text-[9px] font-black uppercase tracking-[0.4em]">{fidelity}</span>
               </button>
-              <span className="text-[8px] font-mono text-zinc-800 uppercase tracking-widest">48.0k</span>
+              <span className="text-[9px] font-mono text-zinc-800 uppercase tracking-[0.3em]">48.0 KHZ</span>
            </div>
-           <div className="flex flex-col items-center py-4 relative z-10">
-              <span className={cn("text-7xl font-mono font-black tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-white" : "text-white/5")}>{formatTime(elapsed)}</span>
-              <div className="w-full mt-8"><VUStrip value={avgLevel} /></div>
+           <div className="flex flex-col items-center py-6 relative z-10">
+              <span className={cn("text-8xl font-mono font-black tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-white" : "text-white/5")}>{formatTime(elapsed)}</span>
+              <div className="w-full mt-10"><VUStrip value={avgLevel} /></div>
            </div>
         </div>
 
@@ -214,59 +204,55 @@ export default function App() {
             onPointerDown={handleRecord}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              "w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300",
-              isRecording ? "bg-onyx-purple shadow-[0_0_40px_rgba(192,132,252,0.3)]" : "bg-white/[0.03] border border-white/10 hover:border-onyx-purple/40"
+              "w-24 h-24 rounded-[2rem] flex items-center justify-center transition-all duration-500",
+              isRecording ? "bg-onyx-purple shadow-[0_0_60px_rgba(192,132,252,0.4)]" : "bg-white/[0.03] border border-white/5 hover:border-onyx-purple/40"
             )}
           >
-            {isRecording ? <Square size={24} className="text-white fill-current" /> : <TechnicalMic active={isRecording} />}
+            {isRecording ? <Square size={28} className="text-white fill-current" /> : <TechnicalMic active={isRecording} />}
           </motion.button>
         </div>
       </div>
 
-      <div className="w-full max-w-lg flex flex-col flex-1 min-h-0 border-t border-white/5 pt-6">
-        <div className="flex items-center justify-between mb-4 px-2">
-           <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em]">Archive Lattice</span>
-              <div className="w-1 h-1 bg-zinc-800 rounded-full" />
-              <span className="text-[8px] font-bold text-zinc-800 uppercase tracking-widest">{recordings.length} NODES</span>
-           </div>
+      <div className="w-full max-w-lg flex flex-col flex-1 min-h-0 pt-6">
+        <div className="flex items-center gap-3 mb-8 px-2">
+           <div className="w-12 h-[1px] bg-zinc-900" />
+           <span className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.5em]">Archive Lattice</span>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar pb-12 relative">
            <AnimatePresence mode="popLayout" initial={false}>
              {recordings.length === 0 ? (
                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center opacity-10">
-                  <span className="text-[8px] font-black uppercase tracking-[0.3em]">No Archival Data</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em]">Empty_Sector</span>
                </motion.div>
              ) : (
-               <div className="flex flex-col gap-3">
+               <div className="flex flex-col gap-4">
                  {recordings.map((record) => (
                    <motion.div 
                      key={record.id}
                      layout
-                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                      animate={{ opacity: record.isStale ? 0.3 : 1, scale: 1, y: 0 }}
-                     exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                     transition={{ type: "spring", stiffness: 500, damping: 30, mass: 0.8 }}
-                     className={cn("bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/10", record.isStale && "grayscale")}
+                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                     className={cn("bg-[#0A0A0A] border border-white/5 rounded-2xl p-5 flex items-center justify-between group hover:border-white/10 shadow-xl", record.isStale && "grayscale")}
                    >
-                     <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                           <span className="text-xs font-black tracking-widest uppercase">{record.name}</span>
-                           {record.isStale && <AlertTriangle size={10} className="text-zinc-800" />}
+                     <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3">
+                           <span className="text-sm font-black tracking-widest uppercase">{record.name}</span>
+                           {record.isStale && <AlertTriangle size={12} className="text-zinc-800" />}
                         </div>
-                        <div className="flex items-center gap-3 opacity-30 text-[8px] font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-3 opacity-30 text-[9px] font-bold uppercase tracking-[0.3em]">
                            <span>{record.timestamp}</span>
-                           <span className="w-1 h-1 bg-white/40 rounded-full" />
+                           <span className="w-1 h-1 bg-white/20 rounded-full" />
                            <span className="tabular-nums">{formatTime(record.duration)}</span>
                         </div>
                      </div>
-                     <div className="flex items-center gap-2">
-                        <button onClick={() => playRecording(record)} className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", currentlyPlaying === record.id ? "bg-white text-black" : "bg-white/5 text-white/40 hover:bg-white/10")}>
-                          {currentlyPlaying === record.id ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+                     <div className="flex items-center gap-3">
+                        <button onClick={() => playRecording(record)} className={cn("w-12 h-12 rounded-xl flex items-center justify-center transition-all", currentlyPlaying === record.id ? "bg-white text-black" : "bg-white/5 text-white/40 hover:bg-white/10")}>
+                          {currentlyPlaying === record.id ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
                         </button>
-                        <button onClick={() => deleteRecord(record.id)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-colors">
-                          <Trash2 size={16} />
+                        <button onClick={() => deleteRecord(record.id)} className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-colors">
+                          <Trash2 size={18} />
                         </button>
                      </div>
                    </motion.div>
