@@ -17,7 +17,6 @@ const triggerHaptic = (type = 'light') => {
   } catch (e) {}
 };
 
-// --- Custom Technical Mic Icon ---
 const TechnicalMic = ({ active }) => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="9" y="4" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity={active ? 1 : 0.4} />
@@ -52,9 +51,19 @@ export default function App() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
   
   const audioRef = useRef(null);
+  const silentPlayerRef = useRef(null); // For Dynamic Island Hack
   const timerRef = useRef(null);
   const recorderRef = useRef(new OnyxRecorder());
   const rafRef = useRef(null);
+
+  // Initialize Silent Player for iOS Dynamic Island support
+  useEffect(() => {
+    const audio = new Audio();
+    // 1-second silent base64 mp3
+    audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+    audio.loop = true;
+    silentPlayerRef.current = audio;
+  }, []);
 
   const playRecord = (url, id) => {
     if (audioRef.current) {
@@ -81,19 +90,41 @@ export default function App() {
     }
   }, [isRecording]);
 
+  const formatTime = (s) => {
+    const mm = Math.floor(s / 60).toString().padStart(2, '0');
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  };
+
+  // Dynamic Island / Media Session Update
+  useEffect(() => {
+    if (isRecording && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: `ONYX SIGNAL: RECORDING`,
+        artist: `Elapsed: ${formatTime(elapsed)}`,
+        album: `Fidelity: ${fidelity}`,
+        artwork: [{ src: 'https://axsamp.github.io/onyx-hub/apple-touch-icon.png', sizes: '512x512', type: 'image/png' }]
+      });
+    }
+  }, [isRecording, elapsed, fidelity]);
+
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => setElapsed(prev => prev + 1), 1000);
       updateVisualizer();
+      silentPlayerRef.current?.play().catch(() => {}); // Start silent loop for iOS backgrounding
     } else {
       clearInterval(timerRef.current);
       cancelAnimationFrame(rafRef.current);
       setElapsed(0);
       setFrequencyData(new Uint8Array(40));
+      silentPlayerRef.current?.pause();
+      if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
     }
     return () => {
       clearInterval(timerRef.current);
       cancelAnimationFrame(rafRef.current);
+      silentPlayerRef.current?.pause();
     };
   }, [isRecording, updateVisualizer]);
 
@@ -121,12 +152,6 @@ export default function App() {
     }
   };
 
-  const formatTime = (s) => {
-    const mm = Math.floor(s / 60).toString().padStart(2, '0');
-    const ss = (s % 60).toString().padStart(2, '0');
-    return `${mm}:${ss}`;
-  };
-
   const deleteRecord = (id) => {
     triggerHaptic('light');
     setRecordings(prev => prev.filter(r => r.id !== id));
@@ -139,7 +164,6 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
-      
       <header className="w-full max-w-lg flex justify-between items-center py-4 mb-8 shrink-0">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.6em] mb-1">Onyx Signal</span>
@@ -176,7 +200,7 @@ export default function App() {
         <div className="flex items-center justify-between px-2">
            <div className="flex flex-col items-center gap-1 opacity-20"><span className="text-[6px] font-black uppercase tracking-widest">In Gain</span><div className="w-8 h-[1px] bg-white/20" /></div>
            <motion.button onPointerDown={handleRecord} whileTap={{ scale: 0.95 }} className={cn("w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 relative", isRecording ? "bg-onyx-purple border border-white/20 shadow-[0_0_40px_rgba(192,132,252,0.3)]" : "bg-white/[0.03] border border-white/10 hover:border-onyx-purple/40")}>
-            {isRecording ? <Square size={24} className="text-white fill-current" /> : <TechnicalMic active={false} />}
+            {isRecording ? <Square size={24} className="text-white fill-current" /> : <TechnicalMic active={isRecording} />}
             {isRecording && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 rounded-2xl border-2 border-onyx-purple/30" />}
           </motion.button>
            <div className="flex flex-col items-center gap-1 opacity-20"><span className="text-[6px] font-black uppercase tracking-widest">Out Bias</span><div className="w-8 h-[1px] bg-white/20" /></div>
