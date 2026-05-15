@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Play, Trash2, Download, Settings, Database, Clock } from 'lucide-react';
+import { Mic, Square, Play, Trash2, Download, Settings, Database, Clock, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OnyxRecorder } from './utils/audio';
@@ -38,15 +38,19 @@ export default function App() {
     audioRef.current = audio;
     setCurrentlyPlaying(id);
     
-    audio.play();
+    audio.play().catch(err => {
+      console.error("ONYX SIGNAL: Playback error", err);
+      setCurrentlyPlaying(null);
+    });
+    
     audio.onended = () => setCurrentlyPlaying(null);
+    audio.onerror = () => setCurrentlyPlaying(null);
   };
 
   // Frequency Data Polling
   const updateVisualizer = () => {
     if (isRecording) {
       const data = recorderRef.current.getFrequencyData();
-      // Downsample to 40 bars for the UI
       const downsampled = new Uint8Array(40);
       for (let i = 0; i < 40; i++) {
         downsampled[i] = data[i * Math.floor(data.length / 40)];
@@ -82,13 +86,11 @@ export default function App() {
     if (typeof window !== 'undefined' && window.navigator.vibrate) {
       window.navigator.vibrate(10);
     }
-    const updated = prev => prev.filter(r => r.id !== id);
-    setRecordings(updated);
-    // Note: We need the length of the filtered array
-    setTimeout(() => {
-      const current = JSON.parse(localStorage.getItem('onyx_signal_count') || '0');
-      localStorage.setItem('onyx_signal_count', Math.max(0, current - 1).toString());
-    }, 0);
+    setRecordings(prev => {
+      const updated = prev.filter(r => r.id !== id);
+      localStorage.setItem('onyx_signal_count', updated.length.toString());
+      return updated;
+    });
   };
 
   const handleRecord = async () => {
@@ -113,39 +115,38 @@ export default function App() {
         duration: elapsed,
         url: result.url,
         timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-        fidelity: fidelity
+        fidelity: fidelity,
+        type: result.type
       };
-      const updatedRecordings = [newRecord, ...recordings];
-      setRecordings(updatedRecordings);
-      localStorage.setItem('onyx_signal_count', updatedRecordings.length.toString());
+      setRecordings(prev => {
+        const updated = [newRecord, ...prev];
+        localStorage.setItem('onyx_signal_count', updated.length.toString());
+        return updated;
+      });
     }
   };
 
   return (
     <div className="h-[100dvh] bg-black text-white p-6 md:p-12 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
       
-      {/* Chassis Branding */}
       <header className="w-full flex justify-between items-start mb-16 px-2 shrink-0">
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-onyx-purple uppercase tracking-[0.6em] mb-2 opacity-80">Onyx Signal</span>
+          <span className="text-[10px] font-bold text-onyx-purple uppercase tracking-[0.6em] mb-2 opacity-80">Onyx Signal // V1.2.0</span>
           <h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.8]">Acoustic<br/><span className="text-white/20">Archive</span></h1>
         </div>
         <div className="flex flex-col items-end pt-2">
           <div className="flex items-center gap-2 mb-1">
-            <Database className="w-3 h-3 text-onyx-purple/60" />
-            <span className="text-[7px] font-bold text-onyx-muted uppercase tracking-[0.3em]">Storage Lnk</span>
+            <Activity className="w-3 h-3 text-onyx-purple/60 animate-pulse" />
+            <span className="text-[7px] font-bold text-onyx-muted uppercase tracking-[0.3em]">System Active</span>
           </div>
-          <span className="text-[10px] font-mono font-bold text-white/40 tracking-tight">0.42 / 5.00 GB</span>
+          <span className="text-[10px] font-mono font-bold text-white/40 tracking-tight">LATENCY: 12ms</span>
         </div>
       </header>
 
-      {/* Main Signal Interface */}
       <main className="flex-1 w-full max-w-2xl flex flex-col items-center overflow-y-auto no-scrollbar pb-32">
         
-        {/* The Oscilloscope Viewport */}
         <div className="w-full aspect-[2/1] bg-white/[0.02] border border-white/5 rounded-3xl relative overflow-hidden mb-12 group shrink-0">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-             {/* Simple visualizer mock */}
              <div className="w-full flex items-center justify-center gap-1 h-32 px-12">
                {[...Array(40)].map((_, i) => (
                  <motion.div 
@@ -160,7 +161,6 @@ export default function App() {
              </div>
           </div>
           
-          {/* Top-Edge Telemetry */}
           <div className="absolute top-4 left-6 flex items-center gap-4">
              <div className="flex items-center gap-2">
                <div className={cn("w-1.5 h-1.5 rounded-full", isRecording ? "bg-red-500 animate-pulse" : "bg-onyx-muted")} />
@@ -169,7 +169,6 @@ export default function App() {
              <span className="text-xl font-mono font-bold tracking-tighter tabular-nums">{formatTime(elapsed)}</span>
           </div>
 
-          {/* Bottom-Edge Settings */}
           <div className="absolute bottom-4 right-6 flex items-center gap-4">
             <button 
               onClick={() => setFidelity(fidelity === 'PRO LOSSLESS' ? 'CORE MEMO' : 'PRO LOSSLESS')}
@@ -180,7 +179,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* The Signal Core (Record Button) */}
         <div className="relative mb-20 shrink-0">
           <motion.button
             onPointerDown={handleRecord}
@@ -193,7 +191,6 @@ export default function App() {
             {isRecording ? <Square className="w-8 h-8 text-red-500 fill-current" /> : <Mic className="w-8 h-8 text-onyx-purple fill-current" />}
           </motion.button>
           
-          {/* Decorative Signal Rings */}
           <AnimatePresence>
             {isRecording && (
               <>
@@ -204,7 +201,6 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* The Archive Lattice */}
         <div className="w-full shrink-0">
           <div className="flex items-center gap-3 mb-6">
              <span className="text-[10px] font-black text-onyx-muted uppercase tracking-[0.4em]">Signal Archive</span>
@@ -212,7 +208,6 @@ export default function App() {
           </div>
 
           <div className="relative">
-             {/* Mini Backbone Line */}
              <div className="absolute left-0 top-0 bottom-0 w-[1.5px] bg-gradient-to-b from-onyx-purple/40 via-onyx-purple/10 to-transparent" />
              
              <div className="flex flex-col gap-8 pl-8">
@@ -227,7 +222,6 @@ export default function App() {
                       transition={{ delay: index * 0.05 }}
                       className="relative flex items-center justify-between group"
                     >
-                      {/* Circuit Path */}
                       <svg className="absolute -left-8 top-1/2 -translate-y-1/2 w-8 h-4 overflow-visible pointer-events-none">
                         <path d="M0 0 L18 0 L24 4" fill="none" stroke="#C084FC" strokeWidth="1" opacity="0.2" />
                         <rect x="-1.5" y="-1.5" width="3" height="3" fill="#C084FC" opacity="0.3" transform="rotate(45)" />
@@ -267,7 +261,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Settings Footer */}
       <footer className="mt-12 flex items-center gap-8 text-[9px] font-bold text-onyx-muted uppercase tracking-[0.4em]">
          <button className="hover:text-white transition-colors flex items-center gap-2"><Settings className="w-3 h-3" /> Config</button>
          <button className="hover:text-white transition-colors flex items-center gap-2"><Download className="w-3 h-3" /> Bulk Export</button>
