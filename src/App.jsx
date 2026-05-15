@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, Play, Trash2, Download, Settings, Database, Clock, Sliders } from 'lucide-react';
+import { Square, Play, Trash2, Download, Settings, Database, Clock, Sliders, AlertTriangle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OnyxRecorder } from './utils/audio';
@@ -42,7 +42,12 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordings, setRecordings] = useState(() => {
     const saved = localStorage.getItem('onyx_signal_archive');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+      // Hydrate from storage and immediately mark as stale since Blobs don't survive refresh
+      const parsed = JSON.parse(saved);
+      return parsed.map(r => ({ ...r, isStale: true }));
+    } catch (e) { return []; }
   });
   const [fidelity, setFidelity] = useState('PRO LOSSLESS');
   const [elapsed, setElapsed] = useState(0);
@@ -61,7 +66,7 @@ export default function App() {
     silentPlayerRef.current = audio;
   }, []);
 
-  // Persist Archive (Metadata only, URLs will break on refresh but titles stay)
+  // Sync Archive to Storage
   useEffect(() => {
     localStorage.setItem('onyx_signal_archive', JSON.stringify(recordings));
   }, [recordings]);
@@ -128,15 +133,16 @@ export default function App() {
       setIsRecording(false);
       silentPlayerRef.current?.pause();
       if (result.url) {
-        setRecordings(prev => [{
+        const newRecord = {
           id: Date.now(),
           name: `SIG ${Math.floor(Math.random() * 999)}`,
           duration: elapsed,
           url: result.url,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
           fidelity,
-          isStale: false // Flag to track if the URL is from a previous session
-        }, ...prev]);
+          isStale: false
+        };
+        setRecordings(prev => [newRecord, ...prev]);
       }
     }
   };
@@ -152,7 +158,7 @@ export default function App() {
 
   const playRecording = (record) => {
     if (record.isStale) {
-      alert("SIGNAL DATA STALE. Recording URLs expire on refresh for security.");
+      alert("SIGNAL DATA ARCHIVED. Audio payload expires on refresh. Metadata persists.");
       return;
     }
     
@@ -171,15 +177,10 @@ export default function App() {
     audio.onended = () => setCurrentlyPlaying(null);
   };
 
-  // Mark existing URLs as stale on load since Blob URLs are session-only
-  useEffect(() => {
-    setRecordings(prev => prev.map(r => ({ ...r, isStale: true })));
-  }, []);
-
   const avgLevel = useMemo(() => isRecording ? frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length : 0, [frequencyData, isRecording]);
 
   return (
-    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
+    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30 overscroll-none">
       <header className="w-full max-w-lg flex justify-between items-center py-4 mb-8 shrink-0">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.6em] mb-1">Onyx Signal</span>
@@ -224,7 +225,11 @@ export default function App() {
 
       <div className="w-full max-w-lg flex flex-col flex-1 min-h-0 border-t border-white/5 pt-6">
         <div className="flex items-center justify-between mb-4 px-2">
-           <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em]">Archive Lattice</span>
+           <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em]">Archive Lattice</span>
+              <div className="w-1 h-1 bg-zinc-800 rounded-full" />
+              <span className="text-[8px] font-bold text-zinc-800 uppercase tracking-widest">{recordings.length} NODES</span>
+           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar pb-12 relative">
@@ -246,7 +251,10 @@ export default function App() {
                      className={cn("bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/10", record.isStale && "grayscale")}
                    >
                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-black tracking-widest uppercase">{record.name}</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-xs font-black tracking-widest uppercase">{record.name}</span>
+                           {record.isStale && <AlertTriangle size={10} className="text-zinc-800" />}
+                        </div>
                         <div className="flex items-center gap-3 opacity-30 text-[8px] font-bold uppercase tracking-widest">
                            <span>{record.timestamp}</span>
                            <span className="w-1 h-1 bg-white/40 rounded-full" />
