@@ -40,7 +40,10 @@ const VUStrip = ({ value }) => {
 
 export default function App() {
   const [isRecording, setIsRecording] = useState(false);
-  const [recordings, setRecordings] = useState([]);
+  const [recordings, setRecordings] = useState(() => {
+    const saved = localStorage.getItem('onyx_signal_archive');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [fidelity, setFidelity] = useState('PRO LOSSLESS');
   const [elapsed, setElapsed] = useState(0);
   const [frequencyData, setFrequencyData] = useState(new Uint8Array(40));
@@ -53,11 +56,15 @@ export default function App() {
 
   useEffect(() => {
     const audio = new Audio();
-    // 1-second silent WAV
     audio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YTABAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
     audio.loop = true;
     silentPlayerRef.current = audio;
   }, []);
+
+  // Persist Archive (Metadata only, URLs will break on refresh but titles stay)
+  useEffect(() => {
+    localStorage.setItem('onyx_signal_archive', JSON.stringify(recordings));
+  }, [recordings]);
 
   const updateVisualizer = useCallback(() => {
     if (isRecording) {
@@ -92,7 +99,6 @@ export default function App() {
     };
   }, [isRecording, updateVisualizer]);
 
-  // Handle Media Session Updates separately to avoid infinite loops
   useEffect(() => {
     if (isRecording && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = new window.MediaMetadata({
@@ -111,7 +117,6 @@ export default function App() {
     triggerHaptic('medium');
     if (!isRecording) {
       try {
-        // iOS requires audio play within a user gesture
         if (silentPlayerRef.current) {
           silentPlayerRef.current.play().catch(e => console.error("Silent play failed", e));
         }
@@ -129,7 +134,8 @@ export default function App() {
           duration: elapsed,
           url: result.url,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-          fidelity
+          fidelity,
+          isStale: false // Flag to track if the URL is from a previous session
         }, ...prev]);
       }
     }
@@ -137,24 +143,55 @@ export default function App() {
 
   const deleteRecord = (id) => {
     triggerHaptic('light');
+    const recordToDelete = recordings.find(r => r.id === id);
+    if (recordToDelete && recordToDelete.url && !recordToDelete.isStale) {
+      URL.revokeObjectURL(recordToDelete.url);
+    }
     setRecordings(prev => prev.filter(r => r.id !== id));
   };
+
+  const playRecording = (record) => {
+    if (record.isStale) {
+      alert("SIGNAL DATA STALE. Recording URLs expire on refresh for security.");
+      return;
+    }
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      if (currentlyPlaying === record.id) {
+        setCurrentlyPlaying(null);
+        return;
+      }
+    }
+
+    const audio = new Audio(record.url);
+    audioRef.current = audio;
+    setCurrentlyPlaying(record.id);
+    audio.play().catch(e => setCurrentlyPlaying(null));
+    audio.onended = () => setCurrentlyPlaying(null);
+  };
+
+  // Mark existing URLs as stale on load since Blob URLs are session-only
+  useEffect(() => {
+    setRecordings(prev => prev.map(r => ({ ...r, isStale: true })));
+  }, []);
 
   const avgLevel = useMemo(() => isRecording ? frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length : 0, [frequencyData, isRecording]);
 
   return (
-    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden">
+    <div className="h-[100dvh] bg-black text-white p-6 flex flex-col items-center font-['Outfit'] overflow-hidden selection:bg-onyx-purple/30">
       <header className="w-full max-w-lg flex justify-between items-center py-4 mb-8 shrink-0">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-onyx-purple uppercase tracking-[0.6em] mb-1">Onyx Signal</span>
           <h1 className="text-xl font-black tracking-tighter uppercase leading-[0.8] text-white/40">Acoustic</h1>
         </div>
-        <div className={cn("w-1.5 h-1.5 rounded-full", isRecording ? "bg-onyx-purple shadow-[0_0_8px_rgba(192,132,252,0.6)]" : "bg-white/5")} />
+        <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", isRecording ? "bg-onyx-purple shadow-[0_0_8px_rgba(192,132,252,0.6)]" : "bg-white/5")} />
       </header>
 
       <div className="w-full max-w-lg flex flex-col gap-6 mb-8 shrink-0">
-        <div className="bg-[#080808] border border-white/5 rounded-3xl p-6 shadow-2xl">
-           <div className="flex justify-between items-start mb-6">
+        <div className="bg-[#080808] border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-onyx-purple/5 blur-3xl -mr-16 -mt-16 rounded-full" />
+           <div className="flex justify-between items-start mb-6 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
@@ -165,7 +202,7 @@ export default function App() {
               </button>
               <span className="text-[8px] font-mono text-zinc-800 uppercase tracking-widest">48.0k</span>
            </div>
-           <div className="flex flex-col items-center py-4">
+           <div className="flex flex-col items-center py-4 relative z-10">
               <span className={cn("text-7xl font-mono font-black tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-white" : "text-white/5")}>{formatTime(elapsed)}</span>
               <div className="w-full mt-8"><VUStrip value={avgLevel} /></div>
            </div>
@@ -193,13 +230,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto no-scrollbar pb-12 relative">
            <AnimatePresence mode="popLayout" initial={false}>
              {recordings.length === 0 ? (
-               <motion.div 
-                 key="empty" 
-                 initial={{ opacity: 0 }} 
-                 animate={{ opacity: 1 }} 
-                 exit={{ opacity: 0 }} 
-                 className="absolute inset-0 flex flex-col items-center justify-center opacity-10"
-               >
+               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center opacity-10">
                   <span className="text-[8px] font-black uppercase tracking-[0.3em]">No Archival Data</span>
                </motion.div>
              ) : (
@@ -209,10 +240,10 @@ export default function App() {
                      key={record.id}
                      layout
                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                     animate={{ opacity: 1, scale: 1, y: 0 }}
+                     animate={{ opacity: record.isStale ? 0.3 : 1, scale: 1, y: 0 }}
                      exit={{ opacity: 0, scale: 0.9, y: 20 }}
                      transition={{ type: "spring", stiffness: 500, damping: 30, mass: 0.8 }}
-                     className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/10"
+                     className={cn("bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/10", record.isStale && "grayscale")}
                    >
                      <div className="flex flex-col gap-1">
                         <span className="text-xs font-black tracking-widest uppercase">{record.name}</span>
@@ -223,23 +254,10 @@ export default function App() {
                         </div>
                      </div>
                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => {
-                            if (audioRef.current) {
-                              audioRef.current.pause();
-                              if (currentlyPlaying === record.id) { setCurrentlyPlaying(null); return; }
-                            }
-                            const audio = new Audio(record.url);
-                            audioRef.current = audio;
-                            setCurrentlyPlaying(record.id);
-                            audio.play().catch(e => setCurrentlyPlaying(null));
-                            audio.onended = () => setCurrentlyPlaying(null);
-                          }} 
-                          className={cn("w-10 h-10 rounded-xl flex items-center justify-center", currentlyPlaying === record.id ? "bg-white text-black" : "bg-white/5 text-white/40")}
-                        >
+                        <button onClick={() => playRecording(record)} className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", currentlyPlaying === record.id ? "bg-white text-black" : "bg-white/5 text-white/40 hover:bg-white/10")}>
                           {currentlyPlaying === record.id ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
                         </button>
-                        <button onClick={() => deleteRecord(record.id)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-800 hover:text-red-500">
+                        <button onClick={() => deleteRecord(record.id)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-colors">
                           <Trash2 size={16} />
                         </button>
                      </div>
