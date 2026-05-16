@@ -17,14 +17,68 @@ const triggerHaptic = (type = 'light') => {
   } catch (e) {}
 };
 
-const VUStrip = ({ value }) => {
-  const level = (value / 255) * 100;
+const CanvasWaveform = ({ isRecording, history }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    
+    const render = () => {
+      const width = canvas.offsetWidth;
+      const height = canvas.offsetHeight;
+      
+      if (canvas.width !== width * dpr) {
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+      }
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      const centerY = height / 2;
+      const barWidth = 3;
+      const gap = 2;
+      const maxBars = Math.floor(width / (barWidth + gap));
+      
+      // We only draw the last 'maxBars' samples
+      const samples = history.current.slice(-maxBars);
+      
+      ctx.fillStyle = '#1a73e8'; // g-primary
+      
+      samples.forEach((amplitude, i) => {
+        const x = width - (samples.length - i) * (barWidth + gap);
+        // Normalize amplitude (0-255 range where 128 is center)
+        const magnitude = Math.abs(amplitude - 128);
+        const barHeight = Math.max(2, (magnitude / 64) * centerY);
+        
+        // Draw mirrored vertical bar
+        const r = 1.5; // corner radius
+        ctx.beginPath();
+        ctx.roundRect(x, centerY - barHeight / 2, barWidth, barHeight, r);
+        ctx.fill();
+      });
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (isRecording) {
+        requestAnimationFrame(render);
+      }
+    };
+
+    if (isRecording) {
+      render();
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [isRecording, history]);
+
   return (
-    <div className="w-full px-4">
-      <div className="h-2 w-full bg-g-aluminium rounded-full overflow-hidden">
-        <motion.div animate={{ width: `${level}%` }} transition={{ type: "spring", stiffness: 300, damping: 20 }} className={cn("h-full", level > 90 ? "bg-red-500" : "bg-g-primary")} />
-      </div>
-    </div>
+    <canvas 
+      ref={canvasRef} 
+      className="w-full h-24 mt-2"
+      style={{ display: 'block' }}
+    />
   );
 };
 
@@ -40,13 +94,13 @@ export default function App() {
   });
   const [fidelity, setFidelity] = useState('PRO LOSSLESS');
   const [elapsed, setElapsed] = useState(0);
-  const [frequencyData, setFrequencyData] = useState(new Uint8Array(40));
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
   
   const audioRef = useRef(null);
   const silentPlayerRef = useRef(null);
   const recorderRef = useRef(new OnyxRecorder());
   const rafRef = useRef(null);
+  const waveformHistory = useRef([]);
 
   useEffect(() => {
     try {
@@ -90,10 +144,21 @@ export default function App() {
 
   const updateVisualizer = useCallback(() => {
     if (isRecording) {
-      const data = recorderRef.current.getFrequencyData();
-      const downsampled = new Uint8Array(40);
-      for (let i = 0; i < 40; i++) downsampled[i] = data[i * Math.floor(data.length / 40)];
-      setFrequencyData(downsampled);
+      const data = recorderRef.current.getTimeDomainData();
+      // Calculate peak amplitude from the chunk
+      let max = 128;
+      for (let i = 0; i < data.length; i++) {
+        if (Math.abs(data[i] - 128) > Math.abs(max - 128)) {
+          max = data[i];
+        }
+      }
+      
+      waveformHistory.current.push(max);
+      // Keep only enough for a few screens of data to prevent memory leaks
+      if (waveformHistory.current.length > 1000) {
+        waveformHistory.current.shift();
+      }
+
       rafRef.current = requestAnimationFrame(updateVisualizer);
     }
   }, [isRecording]);
@@ -113,7 +178,7 @@ export default function App() {
       clearInterval(interval);
       cancelAnimationFrame(rafRef.current);
       setElapsed(0);
-      setFrequencyData(new Uint8Array(40));
+      waveformHistory.current = [];
     }
     return () => {
       clearInterval(interval);
@@ -173,7 +238,7 @@ export default function App() {
     audio.onended = () => setCurrentlyPlaying(null);
   };
 
-  const avgLevel = useMemo(() => isRecording ? frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length : 0, [frequencyData, isRecording]);
+  // avgLevel removed in favor of waveformHistory peak calculation
 
   return (
     <div className="h-[100dvh] bg-g-bg text-g-text p-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none">
@@ -208,7 +273,9 @@ export default function App() {
            </div>
            <div className="flex flex-col items-center py-2 relative z-10">
               <span className={cn("text-5xl font-bold tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-g-text" : "text-g-outline")}>{formatTime(elapsed)}</span>
-              <div className="w-full mt-4"><VUStrip value={avgLevel} /></div>
+              <div className="w-full">
+                <CanvasWaveform isRecording={isRecording} history={waveformHistory} />
+              </div>
            </div>
         </div>
 

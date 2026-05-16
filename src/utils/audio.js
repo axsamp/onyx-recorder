@@ -99,12 +99,12 @@ export class OnyxRecorder {
     });
   }
 
-  getFrequencyData() {
+  getTimeDomainData() {
     if (!this.analyser || !this.audioContext || this.audioContext.state === 'closed') {
-      return new Uint8Array(40).fill(0);
+      return new Uint8Array(this.analyser ? this.analyser.fftSize : 256).fill(128); // 128 is silence in 8-bit time domain
     }
-    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(dataArray);
+    const dataArray = new Uint8Array(this.analyser.fftSize);
+    this.analyser.getByteTimeDomainData(dataArray);
     return dataArray;
   }
 }
