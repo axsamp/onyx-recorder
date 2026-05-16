@@ -49,10 +49,27 @@ export default function App() {
   const rafRef = useRef(null);
 
   useEffect(() => {
-    const audio = new Audio();
-    audio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YTABAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-    audio.loop = true;
-    silentPlayerRef.current = audio;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0; // Perfectly silent
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+
+      const audio = new Audio();
+      audio.srcObject = dest.stream;
+      silentPlayerRef.current = audio;
+    } catch (e) {
+      const audio = new Audio();
+      audio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YTABAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+      audio.loop = true;
+      silentPlayerRef.current = audio;
+    }
   }, []);
 
   useEffect(() => {
@@ -173,15 +190,15 @@ export default function App() {
       </header>
 
       <div className="w-full max-w-lg flex flex-col gap-4 mb-4 shrink-0 px-2">
-        <div className="material-card p-5 shadow-elevation-2 relative overflow-hidden bg-white">
+        <div className="material-card p-4 shadow-elevation-2 relative overflow-hidden bg-white">
            <div className="absolute top-0 right-0 w-48 h-48 bg-g-primary/5 blur-3xl -mr-24 -mt-24 rounded-full" />
-           <div className="flex justify-between items-start mb-6 relative z-10">
+           <div className="flex justify-between items-start mb-4 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
-                className={cn("flex items-center gap-2.5 px-4 py-2 bg-g-bg border rounded-xl transition-all shadow-sm ripple", isRecording ? "opacity-40 border-g-outline/20" : "border-g-outline/20 hover:border-g-primary/50 hover:bg-g-aluminium")}
+                className={cn("flex items-center gap-2.5 px-3 py-1.5 bg-g-bg border rounded-xl transition-all shadow-sm ripple", isRecording ? "opacity-40 border-g-outline/20" : "border-g-outline/20 hover:border-g-primary/50 hover:bg-g-aluminium")}
               >
-                <Sliders size={14} className="text-g-primary" />
+                <Sliders size={12} className="text-g-primary" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-g-text">{fidelity}</span>
               </button>
               <div className="text-right">
@@ -189,9 +206,9 @@ export default function App() {
                 <span className="text-xs font-bold text-g-primary tabular-nums">48.0 KHZ</span>
               </div>
            </div>
-           <div className="flex flex-col items-center py-4 relative z-10">
-              <span className={cn("text-7xl font-bold tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-g-text" : "text-g-outline")}>{formatTime(elapsed)}</span>
-              <div className="w-full mt-10"><VUStrip value={avgLevel} /></div>
+           <div className="flex flex-col items-center py-2 relative z-10">
+              <span className={cn("text-5xl font-bold tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-g-text" : "text-g-outline")}>{formatTime(elapsed)}</span>
+              <div className="w-full mt-4"><VUStrip value={avgLevel} /></div>
            </div>
         </div>
 
@@ -200,11 +217,11 @@ export default function App() {
             onPointerDown={handleRecord}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              "w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-300 ripple shadow-elevation-2",
+              "w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ripple shadow-elevation-2",
               isRecording ? "bg-red-500" : "bg-g-primary text-white"
             )}
           >
-            {isRecording ? <Square size={28} className="fill-current" /> : <Play size={28} className="fill-current ml-1" />}
+            {isRecording ? <Square size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-1" />}
           </motion.button>
         </div>
       </div>
