@@ -96,23 +96,29 @@ export default function App() {
     if (isRecording) {
       triggerHaptic('heavy');
       const { url } = await recorderRef.current.stop();
-      const newRecord = {
-        id: Date.now(),
-        url,
-        name: `Signal_${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
-        timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-        duration: elapsed,
-        isStale: false
-      };
-      setRecordings(prev => [newRecord, ...prev]);
+      if (url) {
+        const newRecord = {
+          id: Date.now(),
+          url,
+          name: `Signal_${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
+          timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+          duration: elapsed,
+          isStale: false
+        };
+        setRecordings(prev => [newRecord, ...prev]);
+      }
       setIsRecording(false);
       if (silentPlayerRef.current) silentPlayerRef.current.pause();
     } else {
       triggerHaptic('medium');
+      // Play synchronously to satisfy iOS gesture requirements for audio
+      if (silentPlayerRef.current) silentPlayerRef.current.play().catch(e => {});
+      
       const started = await recorderRef.current.start();
       if (started) {
         setIsRecording(true);
-        if (silentPlayerRef.current) silentPlayerRef.current.play().catch(e => {});
+      } else {
+        if (silentPlayerRef.current) silentPlayerRef.current.pause();
       }
     }
   };
@@ -207,7 +213,7 @@ export default function App() {
                   <span className="text-[11px] font-bold uppercase tracking-widest text-g-text-variant opacity-40">No signals captured</span>
                 </motion.div>
              ) : (
-                <div className="flex flex-col gap-3">
+                <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full">
                   {recordings.map((record) => (
                     <motion.div 
                       key={record.id}
