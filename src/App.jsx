@@ -95,8 +95,7 @@ export default function App() {
   const handleRecord = async () => {
     if (isRecording) {
       triggerHaptic('heavy');
-      const blob = await recorderRef.current.stop();
-      const url = URL.createObjectURL(blob);
+      const { url } = await recorderRef.current.stop();
       const newRecord = {
         id: Date.now(),
         url,

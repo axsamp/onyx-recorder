@@ -72,9 +72,10 @@ export class OnyxRecorder {
 
       // 1-second timeslices ensure memory stability on long mobile recordings
       this.mediaRecorder.start(1000);
+      return true;
     } catch (err) {
       console.error("ONYX_AUDIO_ERROR:", err);
-      throw err;
+      return false;
     }
   }
 
