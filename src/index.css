@@ -1,45 +1,72 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  --onyx-bg: #000000;
-  --onyx-purple: #C084FC;
-  --onyx-purple-glow: rgba(192, 132, 252, 0.25);
-  --onyx-text: #FFFFFF;
-  --onyx-muted: #71717A;
+@theme {
+  --color-g-bg: #F0F4F8;
+  --color-g-surface: #FFFFFF;
+  --color-g-primary: #0B57D0;
+  --color-g-primary-container: #D3E3FD;
+  --color-g-text: #1F1F1F;
+  --color-g-text-variant: #444746;
+  --color-g-outline: #C4C7C5;
+  --color-g-aluminium: #E8EAED;
+
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+
+  --shadow-elevation-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --shadow-elevation-2: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --shadow-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
 }
 
 @layer base {
   body {
-    background-color: var(--onyx-bg);
-    color: var(--onyx-text);
-    font-family: 'Outfit', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    overscroll-behavior: none;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
+    @apply bg-g-bg text-g-text font-sans antialiased;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
-/* Hide scrollbar */
-::-webkit-scrollbar {
-  display: none;
-}
+@layer components {
+  .material-card {
+    background: #FFFFFF;
+    border-radius: 24px;
+    box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0,0,0,0.03);
+  }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-@keyframes signal-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
-}
-
-.animate-signal {
-  animation: signal-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  .ripple {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+  }
+  .ripple::after {
+    content: "";
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform .5s, opacity 1s;
+  }
+  .ripple:active::after {
+    transform: scale(0, 0);
+    opacity: .1;
+    transition: 0s;
+  }
 }
