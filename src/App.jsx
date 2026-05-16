@@ -59,6 +59,18 @@ export default function App() {
     localStorage.setItem('onyx_signal_archive', JSON.stringify(recordings));
   }, [recordings]);
 
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: 'Acoustic Intel',
+        artist: 'Onyx Protocol Signal',
+      });
+      // iOS requires action handlers for the island to expand into a player widget
+      navigator.mediaSession.setActionHandler('play', () => { /* Prevent default play/pause from breaking state */ });
+      navigator.mediaSession.setActionHandler('pause', () => { /* Prevent default play/pause from breaking state */ });
+    }
+  }, []);
+
   const updateVisualizer = useCallback(() => {
     if (isRecording) {
       const data = recorderRef.current.getFrequencyData();
@@ -149,21 +161,21 @@ export default function App() {
   return (
     <div className="h-[100dvh] bg-g-bg text-g-text p-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none">
       
-      <header className="w-full max-w-lg flex justify-between items-start pt-12 mb-10 shrink-0 px-2">
-        <div className="flex flex-col gap-2">
+      <header className="w-full max-w-lg flex justify-between items-start pt-10 mb-6 shrink-0 px-2">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-g-primary rounded-full animate-pulse" />
             <span className="text-[11px] font-bold text-g-primary uppercase tracking-widest">Acoustic Intel</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-g-text">Signal Recorder</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-g-text">Signal Recorder</h1>
         </div>
         <div className={cn("w-3 h-3 rounded-full transition-colors mt-2 shadow-elevation-1", isRecording ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]" : "bg-g-outline/30")} />
       </header>
 
-      <div className="w-full max-w-lg flex flex-col gap-6 mb-8 shrink-0 px-2">
-        <div className="material-card p-6 shadow-elevation-2 relative overflow-hidden bg-white">
+      <div className="w-full max-w-lg flex flex-col gap-4 mb-4 shrink-0 px-2">
+        <div className="material-card p-5 shadow-elevation-2 relative overflow-hidden bg-white">
            <div className="absolute top-0 right-0 w-48 h-48 bg-g-primary/5 blur-3xl -mr-24 -mt-24 rounded-full" />
-           <div className="flex justify-between items-start mb-10 relative z-10">
+           <div className="flex justify-between items-start mb-6 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
@@ -188,17 +200,17 @@ export default function App() {
             onPointerDown={handleRecord}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              "w-24 h-24 rounded-3xl flex items-center justify-center transition-all duration-300 ripple shadow-elevation-2",
+              "w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-300 ripple shadow-elevation-2",
               isRecording ? "bg-red-500" : "bg-g-primary text-white"
             )}
           >
-            {isRecording ? <Square size={32} className="fill-current" /> : <Play size={32} className="fill-current ml-1" />}
+            {isRecording ? <Square size={28} className="fill-current" /> : <Play size={28} className="fill-current ml-1" />}
           </motion.button>
         </div>
       </div>
 
       <div className="w-full max-w-lg flex flex-col flex-1 min-h-0">
-        <div className="flex items-center justify-between mb-6 px-4">
+        <div className="flex items-center justify-between mb-4 px-4">
            <span className="text-[11px] font-bold text-g-text-variant uppercase tracking-widest">Signal Archive</span>
            <div className="h-[1px] flex-1 bg-g-outline/20 ml-4" />
         </div>
