@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,17 +8,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        'g-bg': '#F0F4F8',
-        'g-surface': '#FFFFFF',
-        'g-primary': '#0B57D0',
-        'g-primary-container': '#D3E3FD',
-        'g-text': '#1F1F1F',
-        'g-text-variant': '#444746',
-        'g-outline': '#C4C7C5',
-        'g-aluminium': '#E8EAED',
+        'g-bg': 'var(--theme-g-bg)',
+        'g-surface': 'var(--theme-g-surface)',
+        'g-primary': 'var(--theme-g-primary)',
+        'g-primary-container': 'var(--theme-g-primary-container)',
+        'g-text': 'var(--theme-g-text)',
+        'g-text-variant': 'var(--theme-g-text-variant)',
+        'g-outline': 'var(--theme-g-outline)',
+        'g-aluminium': 'var(--theme-g-aluminium)',
       },
       fontFamily: {
-        'sans': ['DM Sans', 'sans-serif'],
+        'sans': ['Inter', 'sans-serif'],
+        'display': ['Outfit', 'sans-serif'],
         'mono': ['Roboto Mono', 'monospace'],
       },
       boxShadow: {

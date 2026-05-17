@@ -39,19 +39,21 @@ const CanvasWaveform = ({ isRecording, history }) => {
 
       const centerY = height / 2;
       const barWidth = 3;
-      const gap = 2;
+      const gap = 2.5;
       const maxBars = Math.floor(width / (barWidth + gap));
       
       // We only draw the last 'maxBars' samples
       const samples = history.current.slice(-maxBars);
       
-      ctx.fillStyle = '#1a73e8'; // g-primary
+      // Dynamically load active CSS primary theme color for real-time styling
+      const activePrimary = getComputedStyle(document.documentElement).getPropertyValue('--theme-g-primary').trim() || '#0B57D0';
+      ctx.fillStyle = activePrimary;
       
       samples.forEach((amplitude, i) => {
         const x = width - (samples.length - i) * (barWidth + gap);
         // Normalize amplitude (0-255 range where 128 is center)
         const magnitude = Math.abs(amplitude - 128);
-        const barHeight = Math.max(2, (magnitude / 64) * centerY);
+        const barHeight = Math.max(3, (magnitude / 64) * centerY);
         
         // Draw mirrored vertical bar
         const r = 1.5; // corner radius
@@ -76,7 +78,7 @@ const CanvasWaveform = ({ isRecording, history }) => {
   return (
     <canvas 
       ref={canvasRef} 
-      className="w-full h-24 mt-2"
+      className="w-full h-24 mt-4 rounded-2xl bg-g-bg/35 dark:bg-g-bg/20 border border-g-outline/10"
       style={{ display: 'block' }}
     />
   );
@@ -95,12 +97,42 @@ export default function App() {
   const [fidelity, setFidelity] = useState('PRO LOSSLESS');
   const [elapsed, setElapsed] = useState(0);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+  const [isStealthMode, setIsStealthMode] = useState(() => localStorage.getItem('onyx_stealth_mode') === 'true');
+  const [time, setTime] = useState(new Date());
   
   const audioRef = useRef(null);
   const silentPlayerRef = useRef(null);
   const recorderRef = useRef(new OnyxRecorder());
   const rafRef = useRef(null);
   const waveformHistory = useRef([]);
+
+  // Dynamic Stealth/Dark Theme Synchronization
+  useEffect(() => {
+    const applyTheme = () => {
+      const isDark = localStorage.getItem('onyx_stealth_mode') === 'true';
+      setIsStealthMode(isDark);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+
+    const handleStorage = (e) => {
+      if (e.key === 'onyx_stealth_mode') {
+        applyTheme();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     try {
@@ -128,6 +160,7 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('onyx_signal_archive', JSON.stringify(recordings));
+    localStorage.setItem('onyx_signal_count', recordings.length.toString());
   }, [recordings]);
 
   useEffect(() => {
@@ -136,16 +169,14 @@ export default function App() {
         title: 'Acoustic Intel',
         artist: 'Onyx Protocol Signal',
       });
-      // iOS requires action handlers for the island to expand into a player widget
-      navigator.mediaSession.setActionHandler('play', () => { /* Prevent default play/pause from breaking state */ });
-      navigator.mediaSession.setActionHandler('pause', () => { /* Prevent default play/pause from breaking state */ });
+      navigator.mediaSession.setActionHandler('play', () => {});
+      navigator.mediaSession.setActionHandler('pause', () => {});
     }
   }, []);
 
   const updateVisualizer = useCallback(() => {
     if (isRecording) {
       const data = recorderRef.current.getTimeDomainData();
-      // Calculate peak amplitude from the chunk
       let max = 128;
       for (let i = 0; i < data.length; i++) {
         if (Math.abs(data[i] - 128) > Math.abs(max - 128)) {
@@ -154,7 +185,6 @@ export default function App() {
       }
       
       waveformHistory.current.push(max);
-      // Keep only enough for a few screens of data to prevent memory leaks
       if (waveformHistory.current.length > 1000) {
         waveformHistory.current.shift();
       }
@@ -168,6 +198,13 @@ export default function App() {
     const ss = (s % 60).toString().padStart(2, '0');
     return `${mm}:${ss}`;
   };
+
+  const tokyoTime = useMemo(() => {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Tokyo',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).format(time);
+  }, [time]);
 
   useEffect(() => {
     let interval;
@@ -205,7 +242,6 @@ export default function App() {
       if (silentPlayerRef.current) silentPlayerRef.current.pause();
     } else {
       triggerHaptic('medium');
-      // Play synchronously to satisfy iOS gesture requirements for audio
       if (silentPlayerRef.current) silentPlayerRef.current.play().catch(e => {});
       
       const started = await recorderRef.current.start();
@@ -238,75 +274,98 @@ export default function App() {
     audio.onended = () => setCurrentlyPlaying(null);
   };
 
-  // avgLevel removed in favor of waveformHistory peak calculation
-
   return (
-    <div className="h-[100dvh] bg-g-bg text-g-text p-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none">
+    <div className="h-[100dvh] bg-g-bg text-g-text p-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none transition-colors duration-700">
       
-      <header className="w-full max-w-lg flex justify-between items-start pt-10 mb-6 shrink-0 px-2">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-g-primary rounded-full animate-pulse" />
-            <span className="text-[11px] font-bold text-g-primary uppercase tracking-widest">Acoustic Intel</span>
+      {/* Dynamic Island Safety Spacer */}
+      <div className="h-10 w-full shrink-0"></div>
+
+      {/* M3 Expressive Header */}
+      <header className="w-full max-w-lg flex justify-between items-end py-4 shrink-0 px-2">
+        <div>
+          <h1 className="text-[44px] leading-[1.05] font-black font-display tracking-tight text-g-text">
+            Recorder.
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[11px] font-bold px-3 py-1 bg-g-primary-container text-g-primary rounded-full tracking-wide">
+              {tokyoTime.split(':').slice(0, 2).join(':')} JST
+            </span>
+            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-g-text-variant">
+              Active • Signal Deck
+            </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-g-text">Signal Recorder</h1>
         </div>
-        <div className={cn("w-3 h-3 rounded-full transition-colors mt-2 shadow-elevation-1", isRecording ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]" : "bg-g-outline/30")} />
+        <div className="flex items-center gap-2 mb-2">
+          {isRecording && <span className="text-[8px] font-bold tracking-[0.2em] text-red-500 uppercase animate-pulse">RECORDING</span>}
+          <div className={cn("w-3.5 h-3.5 rounded-full transition-all duration-500 shadow-sm", isRecording ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] scale-110" : "bg-g-outline/35 scale-100")} />
+        </div>
       </header>
 
+      {/* Core Deck Cards */}
       <div className="w-full max-w-lg flex flex-col gap-4 mb-4 shrink-0 px-2">
-        <div className="material-card p-4 shadow-elevation-2 relative overflow-hidden bg-white">
+        
+        {/* Main Recorder Console Card */}
+        <div className="material-card p-6 shadow-sm border-g-outline/10 relative overflow-hidden bg-g-surface">
            <div className="absolute top-0 right-0 w-48 h-48 bg-g-primary/5 blur-3xl -mr-24 -mt-24 rounded-full" />
            <div className="flex justify-between items-start mb-4 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
-                className={cn("flex items-center gap-2.5 px-3 py-1.5 bg-g-bg border rounded-xl transition-all shadow-sm ripple", isRecording ? "opacity-40 border-g-outline/20" : "border-g-outline/20 hover:border-g-primary/50 hover:bg-g-aluminium")}
+                className={cn("flex items-center gap-2 px-3 py-2 bg-g-bg/50 dark:bg-g-bg/20 border border-g-outline/10 rounded-xl transition-all shadow-sm ripple cursor-pointer", isRecording ? "opacity-35" : "hover:bg-g-primary-container hover:text-g-primary hover:border-g-primary/20")}
               >
                 <Sliders size={12} className="text-g-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-g-text">{fidelity}</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-g-text-variant">{fidelity}</span>
               </button>
               <div className="text-right">
-                <span className="text-[10px] font-bold text-g-text-variant uppercase tracking-widest block">Sample Rate</span>
-                <span className="text-xs font-bold text-g-primary tabular-nums">48.0 KHZ</span>
+                <span className="text-[9px] font-bold text-g-text-variant uppercase tracking-widest block">Format Bitrate</span>
+                <span className="text-[11px] font-bold text-g-primary tabular-nums font-mono">48.0 KHZ • WAV</span>
               </div>
            </div>
+           
+           {/* Timer and Waveform Display Area */}
            <div className="flex flex-col items-center py-2 relative z-10">
-              <span className={cn("text-5xl font-bold tracking-tighter tabular-nums leading-none transition-all", isRecording ? "text-g-text" : "text-g-outline")}>{formatTime(elapsed)}</span>
+              <span className={cn("text-6xl font-black tracking-tighter tabular-nums leading-none transition-all font-display duration-500", isRecording ? "text-g-text" : "text-g-text-variant/40")}>
+                {formatTime(elapsed)}
+              </span>
               <div className="w-full">
                 <CanvasWaveform isRecording={isRecording} history={waveformHistory} />
               </div>
            </div>
         </div>
 
-        <div className="flex items-center justify-center">
+        {/* Tactical Recording Action Button */}
+        <div className="flex items-center justify-center py-2">
            <motion.button
-            onPointerDown={handleRecord}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={handleRecord}
             className={cn(
-              "w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ripple shadow-elevation-2",
-              isRecording ? "bg-red-500" : "bg-g-primary text-white"
+              "w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 shadow-md cursor-pointer ripple border",
+              isRecording 
+                ? "bg-red-500 border-red-500/20 text-white scale-110" 
+                : "bg-g-primary border-g-primary/20 text-white dark:text-[#202124]"
             )}
           >
-            {isRecording ? <Square size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-1" />}
+            {isRecording ? <Square size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-1.5" />}
           </motion.button>
         </div>
       </div>
 
+      {/* Signal Archives display */}
       <div className="w-full max-w-lg flex flex-col flex-1 min-h-0">
         <div className="flex items-center justify-between mb-4 px-4">
-           <span className="text-[11px] font-bold text-g-text-variant uppercase tracking-widest">Signal Archive</span>
-           <div className="h-[1px] flex-1 bg-g-outline/20 ml-4" />
+           <span className="text-[10px] font-bold text-g-text-variant uppercase tracking-[0.2em]">Signal Archives</span>
+           <div className="h-[1px] flex-1 bg-g-outline/10 ml-4" />
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-20 px-2 relative">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-24 px-2 relative">
            <AnimatePresence mode="popLayout" initial={false}>
              {recordings.length === 0 ? (
                 <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-g-aluminium flex items-center justify-center mb-4 opacity-40">
-                    <Database size={24} className="text-g-text-variant" />
+                  <div className="w-14 h-14 rounded-full bg-g-aluminium/40 dark:bg-g-aluminium/10 flex items-center justify-center mb-4 opacity-40">
+                    <Database size={22} className="text-g-text-variant" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-g-text-variant opacity-40">No signals captured</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-g-text-variant opacity-40">No signals logged</span>
                 </motion.div>
              ) : (
                 <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-3 w-full">
@@ -314,27 +373,39 @@ export default function App() {
                     <motion.div 
                       key={record.id}
                       layout
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      initial={{ opacity: 0, scale: 0.94, y: 15 }}
                       animate={{ opacity: record.isStale ? 0.6 : 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                      className={cn("material-card p-5 flex items-center justify-between group shadow-elevation-1 ripple", record.isStale && "bg-g-bg/50 border-dashed border-g-outline/30")}
+                      exit={{ opacity: 0, scale: 0.94, y: 15 }}
+                      transition={{ type: "spring", damping: 20, stiffness: 220 }}
+                      className={cn("material-card p-5 flex items-center justify-between group shadow-sm border-g-outline/10 ripple", record.isStale && "bg-g-bg/30 border-dashed border-g-outline/20")}
                     >
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-1.5 min-w-0">
                          <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-g-text">{record.name}</span>
-                            {record.isStale && <AlertTriangle size={12} className="text-red-500" />}
+                            <span className="text-base font-extrabold text-g-text font-display truncate">{record.name}</span>
+                            {record.isStale && <AlertTriangle size={12} className="text-red-500 shrink-0" />}
                          </div>
-                         <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-g-text-variant">
+                         <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-g-text-variant">
                             <span>{record.timestamp}</span>
-                            <div className="w-1 h-1 bg-g-outline rounded-full" />
-                            <span className="tabular-nums">{formatTime(record.duration)}</span>
+                            <div className="w-1 h-1 bg-g-outline rounded-full shrink-0" />
+                            <span className="tabular-nums font-mono">{formatTime(record.duration)}</span>
                          </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                         <button onClick={() => playRecording(record)} className={cn("w-12 h-12 rounded-full flex items-center justify-center transition-all ripple", currentlyPlaying === record.id ? "bg-g-primary text-white shadow-elevation-2" : "bg-g-aluminium text-g-text-variant hover:bg-g-outline/20")}>
+                      <div className="flex items-center gap-3 shrink-0">
+                         <button 
+                           onClick={() => playRecording(record)} 
+                           className={cn(
+                             "w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer ripple shadow-sm",
+                             currentlyPlaying === record.id 
+                               ? "bg-g-primary text-white" 
+                               : "bg-g-aluminium/50 dark:bg-g-aluminium/10 text-g-text hover:bg-g-primary-container hover:text-g-primary"
+                           )}
+                         >
                            {currentlyPlaying === record.id ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
                          </button>
-                         <button onClick={() => deleteRecord(record.id)} className="w-12 h-12 rounded-full bg-g-surface border border-g-outline/20 flex items-center justify-center text-g-text-variant hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-colors shadow-sm">
+                         <button 
+                           onClick={() => deleteRecord(record.id)} 
+                           className="w-12 h-12 rounded-full bg-g-surface border border-g-outline/15 flex items-center justify-center text-g-text-variant hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all shadow-sm cursor-pointer"
+                         >
                            <Trash2 size={16} />
                          </button>
                       </div>
