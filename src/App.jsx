@@ -333,56 +333,53 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] bg-g-bg text-g-text p-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none transition-colors duration-700">
+    <div className="h-[100dvh] bg-g-bg text-g-text px-6 pb-6 flex flex-col items-center font-sans overflow-hidden selection:bg-g-primary-container overscroll-none transition-colors duration-700" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 20px))' }}>
       
-      {/* Dynamic Island Safety Spacer */}
-      <div className="h-10 w-full shrink-0"></div>
-
       {/* M3 Expressive Header */}
-      <header className="w-full max-w-lg flex justify-between items-end py-4 shrink-0 px-2">
+      <header className="w-full max-w-lg flex justify-between items-end pb-3 shrink-0 px-2">
         <div>
-          <h1 className="text-[44px] leading-[1.05] font-black font-display tracking-tight text-g-text">
+          <h1 className="text-[40px] leading-[1.05] font-black font-display tracking-tight text-g-text">
             Recorder.
           </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[11px] font-bold px-3 py-1 bg-g-primary-container text-g-primary rounded-full tracking-wide">
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 bg-g-primary-container text-g-primary rounded-full tracking-wide">
               {tokyoTime.split(':').slice(0, 2).join(':')} JST
             </span>
-            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-g-text-variant">
+            <span className="text-[9px] font-bold tracking-[0.15em] uppercase text-g-text-variant">
               Active • Signal Deck
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1.5">
           {isRecording && <span className="text-[8px] font-bold tracking-[0.2em] text-red-500 uppercase animate-pulse">RECORDING</span>}
-          <div className={cn("w-3.5 h-3.5 rounded-full transition-all duration-500 shadow-sm", isRecording ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] scale-110" : "bg-g-outline/35 scale-100")} />
+          <div className={cn("w-3 h-3 rounded-full transition-all duration-500 shadow-sm", isRecording ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] scale-110" : "bg-g-outline/35 scale-100")} />
         </div>
       </header>
 
       {/* Core Deck Cards */}
-      <div className="w-full max-w-lg flex flex-col gap-4 mb-4 shrink-0 px-2">
+      <div className="w-full max-w-lg flex flex-col gap-3 mb-3 shrink-0 px-2">
         
         {/* Main Recorder Console Card */}
-        <div className="material-card p-6 shadow-sm border-g-outline/10 relative overflow-hidden bg-g-surface">
+        <div className="material-card p-5 shadow-sm border-g-outline/10 relative overflow-hidden bg-g-surface">
            <div className="absolute top-0 right-0 w-48 h-48 bg-g-primary/5 blur-3xl -mr-24 -mt-24 rounded-full" />
-           <div className="flex justify-between items-start mb-4 relative z-10">
+           <div className="flex justify-between items-start mb-3 relative z-10">
               <button 
                 disabled={isRecording}
                 onClick={() => { triggerHaptic(); setFidelity(f => f === 'PRO LOSSLESS' ? 'CORE VOICE' : 'PRO LOSSLESS'); }}
-                className={cn("flex items-center gap-2 px-3 py-2 bg-g-bg/50 dark:bg-g-bg/20 border border-g-outline/10 rounded-xl transition-all shadow-sm ripple cursor-pointer", isRecording ? "opacity-35" : "hover:bg-g-primary-container hover:text-g-primary hover:border-g-primary/20")}
+                className={cn("flex items-center gap-2 px-3 py-1.5 bg-g-bg/50 dark:bg-g-bg/20 border border-g-outline/10 rounded-xl transition-all shadow-sm ripple cursor-pointer", isRecording ? "opacity-35" : "hover:bg-g-primary-container hover:text-g-primary hover:border-g-primary/20")}
               >
-                <Sliders size={12} className="text-g-primary" />
-                <span className="text-[9px] font-black uppercase tracking-wider text-g-text-variant">{fidelity}</span>
+                <Sliders size={11} className="text-g-primary" />
+                <span className="text-[8px] font-black uppercase tracking-wider text-g-text-variant">{fidelity}</span>
               </button>
               <div className="text-right">
-                <span className="text-[9px] font-bold text-g-text-variant uppercase tracking-widest block">Format Bitrate</span>
-                <span className="text-[11px] font-bold text-g-primary tabular-nums font-mono">48.0 KHZ • WAV</span>
+                <span className="text-[8px] font-bold text-g-text-variant uppercase tracking-widest block">Format Bitrate</span>
+                <span className="text-[10px] font-bold text-g-primary tabular-nums font-mono">48.0 KHZ • WAV</span>
               </div>
            </div>
            
            {/* Timer and Waveform Display Area */}
-           <div className="flex flex-col items-center py-2 relative z-10">
-              <span className={cn("text-6xl font-black tracking-tighter tabular-nums leading-none transition-all font-display duration-500", isRecording ? "text-g-text" : "text-g-text-variant/40")}>
+           <div className="flex flex-col items-center py-1 relative z-10">
+              <span className={cn("text-5xl font-black tracking-tighter tabular-nums leading-none transition-all font-display duration-500", isRecording ? "text-g-text" : "text-g-text-variant/40")}>
                 {formatTime(elapsed)}
               </span>
               <div className="w-full">
@@ -392,31 +389,31 @@ export default function App() {
         </div>
 
         {/* Tactical Recording Action Button */}
-        <div className="flex items-center justify-center py-2">
+        <div className="flex items-center justify-center py-1">
            <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.92 }}
             onClick={handleRecord}
             className={cn(
-              "w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 shadow-md cursor-pointer ripple border",
+              "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 shadow-md cursor-pointer ripple border",
               isRecording 
                 ? "bg-red-500 border-red-500/20 text-white scale-110" 
                 : "bg-g-primary border-g-primary/20 text-white dark:text-[#202124]"
             )}
           >
-            {isRecording ? <Square size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-1.5" />}
+            {isRecording ? <Square size={20} className="fill-current" /> : <Play size={20} className="fill-current ml-1" />}
           </motion.button>
         </div>
       </div>
 
       {/* Signal Archives display */}
       <div className="w-full max-w-lg flex flex-col flex-1 min-h-0">
-        <div className="flex items-center justify-between mb-4 px-4">
-           <span className="text-[10px] font-bold text-g-text-variant uppercase tracking-[0.2em]">Signal Archives</span>
+        <div className="flex items-center justify-between mb-2.5 px-4">
+           <span className="text-[9px] font-bold text-g-text-variant uppercase tracking-[0.2em]">Signal Archives</span>
            <div className="h-[1px] flex-1 bg-g-outline/10 ml-4" />
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-24 px-2 relative">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-16 px-2 relative">
            <AnimatePresence mode="popLayout" initial={false}>
              {recordings.length === 0 ? (
                 <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center">
