@@ -1,6 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%">
-  <circle cx="12" cy="12" r="3.5" fill="#FABD00" />
-  <path d="M8.5 12c0-1.93 1.57-3.5 3.5-3.5s3.5 1.57 3.5 3.5" fill="none" stroke="#FABD00" stroke-width="1.5" stroke-linecap="round" />
-  <path d="M5.5 12c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" fill="none" stroke="#FABD00" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5,1.5" opacity="0.75" />
-  <circle cx="12" cy="12" r="10" fill="none" stroke="#FABD00" stroke-width="1" opacity="0.25" />
+  <!-- Signature Vibrant Red Circle -->
+  <circle cx="12" cy="12" r="10" fill="#EA4335" />
+  
+  <!-- High-Contrast Minimalist White Soundwave (3 Rounded Capsule Pills) -->
+  <rect x="8.5" y="9.5" width="2" height="5" rx="1" fill="#FFFFFF" />
+  <rect x="11" y="7" width="2" height="10" rx="1" fill="#FFFFFF" />
+  <rect x="13.5" y="9.5" width="2" height="5" rx="1" fill="#FFFFFF" />
 </svg>
