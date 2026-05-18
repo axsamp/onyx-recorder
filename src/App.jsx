@@ -106,22 +106,80 @@ export default function App() {
   const rafRef = useRef(null);
   const waveformHistory = useRef([]);
 
-  // Dynamic Stealth/Dark Theme Synchronization
+  // Unified Cross-App Theme Synchronization
   useEffect(() => {
+    const THEME_PALETTES = {
+      cobalt: {
+        light: { primary: '#0B57D0', primaryContainer: '#D3E3FD', bg: '#F0F4F8', surface: '#FFFFFF', onSurface: '#1F1F1F', outline: '#C4C7C5', aluminium: '#E8EAED' },
+        dark: { primary: '#8AB4F8', primaryContainer: '#3C4043', bg: '#202124', surface: '#303134', onSurface: '#E8EAED', outline: '#5F6368', aluminium: '#282A2D' }
+      },
+      vermilion: {
+        light: { primary: '#A83827', primaryContainer: '#FFDAD3', bg: '#FFF8F6', surface: '#FFF8F6', onSurface: '#231A18', outline: '#857370', aluminium: '#F5DED9' },
+        dark: { primary: '#FFB4A7', primaryContainer: '#862112', bg: '#1A1110', surface: '#1A1110', onSurface: '#F1DFDA', outline: '#A08C89', aluminium: '#534340' }
+      },
+      matcha: {
+        light: { primary: '#4C662B', primaryContainer: '#CDEDA3', bg: '#F8FAF2', surface: '#FFFFFF', onSurface: '#1A1C16', outline: '#74796A', aluminium: '#E8EAED' },
+        dark: { primary: '#B2D189', primaryContainer: '#354E16', bg: '#11140E', surface: '#1A1D16', onSurface: '#E3E3DA', outline: '#8E9285', aluminium: '#282A2D' }
+      },
+      sakura: {
+        light: { primary: '#B326B3', primaryContainer: '#FAD2FA', bg: '#FAF2FA', surface: '#FFFFFF', onSurface: '#263238', outline: '#B0BEC5', aluminium: '#E8EAED' },
+        dark: { primary: '#E1BEE7', primaryContainer: '#4A148C', bg: '#1A0E1A', surface: '#2D1F2D', onSurface: '#F3E5F5', outline: '#7B1FA2', aluminium: '#282A2D' }
+      },
+      yuzu: {
+        light: { primary: '#7E5700', primaryContainer: '#FFE086', bg: '#FFF8EE', surface: '#FFF8EE', onSurface: '#1E1B13', outline: '#7C7767', aluminium: '#F6E0BB' },
+        dark: { primary: '#FABD00', primaryContainer: '#5F4100', bg: '#16130B', surface: '#16130B', onSurface: '#F1DFDA', outline: '#969080', aluminium: '#53462A' }
+      },
+      titanium: {
+        light: { primary: '#5A626A', primaryContainer: '#E2E7EC', bg: '#F1F3F5', surface: '#FFFFFF', onSurface: '#1E2022', outline: '#70777A', aluminium: '#CFD4DA' },
+        dark: { primary: '#CFD4DA', primaryContainer: '#2D3238', bg: '#1E2022', surface: '#2D3238', onSurface: '#F1F3F5', outline: '#8E9598', aluminium: '#1A1A1A' }
+      },
+      abyss: {
+        light: { primary: '#006C5B', primaryContainer: '#59FCE1', bg: '#F4FEFA', surface: '#FFFFFF', onSurface: '#00201A', outline: '#6F7977', aluminium: '#CCEBE5' },
+        dark: { primary: '#59FCE1', primaryContainer: '#005043', bg: '#001511', surface: '#00201A', onSurface: '#E6FFF9', outline: '#899391', aluminium: '#00372E' }
+      }
+    };
+
     const applyTheme = () => {
+      // 1. Check URL parameters first for cross-port / Hub launches
+      const params = new URLSearchParams(window.location.search);
+      const urlTheme = params.get('theme');
+      const urlStealth = params.get('stealth');
+
+      if (urlTheme) localStorage.setItem('onyx_theme', urlTheme);
+      if (urlStealth) localStorage.setItem('onyx_stealth_mode', urlStealth);
+
+      // 2. Read stored options
+      const themeName = localStorage.getItem('onyx_theme') || 'cobalt';
       const isDark = localStorage.getItem('onyx_stealth_mode') === 'true';
+
+      // 3. Toggle dark/light class
       setIsStealthMode(isDark);
       if (isDark) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
+
+      // 4. Resolve exact colors
+      const activePalette = THEME_PALETTES[themeName] || THEME_PALETTES.cobalt;
+      const colors = isDark ? activePalette.dark : activePalette.light;
+
+      // 5. Inject theme variables
+      const root = document.documentElement;
+      root.style.setProperty('--theme-g-primary', colors.primary);
+      root.style.setProperty('--theme-g-primary-container', colors.primaryContainer);
+      root.style.setProperty('--theme-g-bg', colors.bg);
+      root.style.setProperty('--theme-g-surface', colors.surface);
+      root.style.setProperty('--theme-g-text', colors.onSurface || (isDark ? '#E8EAED' : '#1F1F1F'));
+      root.style.setProperty('--theme-g-text-variant', isDark ? '#9AA0A6' : '#444746');
+      root.style.setProperty('--theme-g-outline', colors.outline);
+      root.style.setProperty('--theme-g-aluminium', colors.aluminium);
     };
 
     applyTheme();
 
     const handleStorage = (e) => {
-      if (e.key === 'onyx_stealth_mode') {
+      if (e.key === 'onyx_stealth_mode' || e.key === 'onyx_theme') {
         applyTheme();
       }
     };
